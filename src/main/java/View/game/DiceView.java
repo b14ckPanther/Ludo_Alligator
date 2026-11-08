@@ -28,6 +28,7 @@ public final class DiceView extends JComponent {
     private final Random shuffle = new Random();
     private final Timer glowTimer;
     private int face = 6;
+    private boolean rolled;
     private double tumble;
     private double settle = 1;
     private double angle;
@@ -93,6 +94,7 @@ public final class DiceView extends JComponent {
             repaint();
         }, () -> {
             face = roll.step();
+            rolled = true;
             settle = 0;
             Anim.run(260, Anim.Ease.OUT_BACK, t -> {
                 settle = t;
@@ -150,7 +152,7 @@ public final class DiceView extends JComponent {
         };
         for (double[] p : dots) {
             // a six gets red dots once the die has stopped
-            g.setColor(face == 6 && settle >= 1 ? new Color(0xC2263A) : Theme.INK_3);
+            g.setColor(rolled && face == 6 && settle >= 1 ? new Color(0xC2263A) : Theme.INK_3);
             g.fill(new Ellipse2D.Double(p[0] - pr, p[1] - pr, pr * 2, pr * 2));
             g.setColor(new Color(255, 255, 255, 60));
             g.fill(new Ellipse2D.Double(p[0] - pr * 0.4, p[1] - pr * 0.6, pr * 0.7, pr * 0.5));
