@@ -13,6 +13,14 @@ public interface GameListener {
     /** The current player rolled. */
     default void rolled(Player player, DiceRoll roll) { }
 
+    /**
+     * A piece moved along its route.
+     *
+     * @param from route index before ({@link Piece#IN_CASTLE} if it came out of the castle)
+     * @param to   route index after
+     */
+    default void pieceMoved(Piece piece, int from, int to) { }
+
     /** The game now waits for something else (see {@link TurnPhase}). */
     default void phaseChanged(TurnPhase phase) { }
 

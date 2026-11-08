@@ -149,6 +149,33 @@ public final class Game {
         return roll;
     }
 
+    /**
+     * Carries out one of the moves from {@link #legalMoves()} (Command pattern).
+     * After the move the player rolls again if the roll was a six, otherwise
+     * the turn passes.
+     *
+     * @throws IllegalStateException    if the game isn't waiting for a move
+     * @throws IllegalArgumentException if the move is not one of the legal moves
+     */
+    public void play(Move move) {
+        requirePhase(TurnPhase.CHOOSE_MOVE);
+        if (!legalMoves.contains(move)) {
+            throw new IllegalArgumentException("That move is not allowed right now");
+        }
+        legalMoves = List.of();
+        Piece piece = move.piece();
+        Player player = currentPlayer();
+        piece.moveTo(move.to());
+        fire(l -> l.pieceMoved(piece, move.from(), move.to()));
+
+        if (move.isEnter()) {
+            log(player.name() + " brings " + piece + " out of the castle");
+        } else if (isFinished(piece)) {
+            log(piece + " reached the finish (" + finishedCount(player) + "/" + Player.PIECES + ")");
+        }
+        endAction();
+    }
+
     // ------------------------------------------------------------------ rules
 
     /**
