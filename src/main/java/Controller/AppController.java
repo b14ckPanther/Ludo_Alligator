@@ -4,6 +4,7 @@ import Model.BoardFactory;
 import Model.Game;
 import Model.GameConfig;
 import View.MainFrame;
+import View.game.GameScreen;
 import View.screens.HomeScreen;
 import View.screens.SetupScreen;
 
@@ -35,8 +36,9 @@ public final class AppController {
     public void startGame(GameConfig config) {
         lastConfig = config;
         Game game = new Game(config, BoardFactory.create(config.difficulty(), random));
-        // TODO T1.5: open the board screen for this game
-        showHome();
+        GameScreen screen = new GameScreen(game, frame);
+        frame.showScreen(screen);
+        game.start();
     }
 
     public void exit() {
