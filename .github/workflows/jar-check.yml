@@ -1,0 +1,78 @@
+# T1.14: run the jar on Windows and macOS (risk R4 in the SDP).
+# Tests the jar that is committed in dist/ (the one we hand in), then checks
+# that the build scripts still make a working jar on each system.
+name: Jar check
+
+on:
+  push:
+    branches: [main, T1.14-jar-windows-macos]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  jar:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Copy the committed jar
+        shell: bash
+        run: |
+          mkdir -p smoke
+          cp dist/Ludo_Alligator.jar smoke/
+
+      - name: Run the checks against the committed jar
+        shell: bash
+        working-directory: smoke
+        run: |
+          javac -cp Ludo_Alligator.jar -d classes ../ci/JarSmokeTest.java
+          java -cp "Ludo_Alligator.jar${{ runner.os == 'Windows' && ';' || ':' }}classes" JarSmokeTest
+
+      - name: Build with build.bat
+        if: runner.os == 'Windows'
+        shell: cmd
+        run: build.bat
+
+      - name: Build with build.sh
+        if: runner.os != 'Windows'
+        run: ./build.sh
+
+      - name: Start the game with run.bat
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          Start-Process -FilePath "cmd.exe" -ArgumentList "/c", "run.bat"
+          Start-Sleep -Seconds 12
+          $java = Get-Process java -ErrorAction SilentlyContinue
+          if (-not $java) { Write-Error "The game did not start"; exit 1 }
+          Write-Host "Game is running (java process $($java.Id))"
+          Stop-Process -Id $java.Id
+
+      - name: Start the game with run.sh
+        if: runner.os != 'Windows'
+        run: |
+          ./run.sh &
+          sleep 12
+          if pgrep -f Ludo_Alligator.jar > /dev/null; then
+            echo "Game is running"
+            pkill -f Ludo_Alligator.jar
+          else
+            echo "The game did not start"; exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: jar-check-${{ matrix.os }}
+          path: |
+            smoke/*.png
+            smoke/data/history.csv
