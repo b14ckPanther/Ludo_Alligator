@@ -1,6 +1,5 @@
 package View.ui;
 
-import javax.swing.JComponent;
 import javax.swing.KeyStroke;
 import javax.swing.AbstractAction;
 import java.awt.BasicStroke;
@@ -27,7 +26,7 @@ import java.util.function.Function;
  *
  * @param <T> type of the options
  */
-public class Segmented<T> extends JComponent {
+public class Segmented<T> extends A11yComponent {
     private final List<T> options;
     private final Function<T, String> label;
     private final List<Consumer<T>> listeners = new ArrayList<>();
@@ -37,6 +36,7 @@ public class Segmented<T> extends JComponent {
     private Function<T, Color> accent = t -> Theme.CHALK;
 
     public Segmented(List<T> options, Function<T, String> label, T initial) {
+        super(javax.accessibility.AccessibleRole.PAGE_TAB_LIST);
         this.options = List.copyOf(options);
         this.label = label;
         this.selected = Math.max(0, options.indexOf(initial));
