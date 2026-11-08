@@ -21,6 +21,8 @@ public final class Text {
 
     public static JLabel label(String text, Font font, Color color) {
         JLabel l = new JLabel(text);
+        // a few pixels extra on the right: with antialiased text the last letter can be cut off otherwise
+        l.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 4));
         l.setFont(font);
         l.setForeground(color);
         return l;
