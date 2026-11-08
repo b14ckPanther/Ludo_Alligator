@@ -54,7 +54,9 @@ public final class HomeScreen extends Screen {
         left.add(Box.createVerticalStrut(18));
         JLabel blurb = Text.paragraph("The classic board game for 2 to 4 players on one computer. "
                 + "Roll a six to leave your castle, capture the other pieces and be the first "
-                + "to bring all four home.", Theme.ui(400, 17f), Theme.CHALK, 430);
+                + "to bring all four home.", Theme.ui(400, 17f), Theme.CHALK, 380);
+        // 380 and not wider: Windows draws this text about 10% wider than macOS,
+        // and it must still fit in half of the smallest window
         blurb.setAlignmentX(Component.LEFT_ALIGNMENT);
         left.add(blurb);
         left.add(Box.createVerticalStrut(34));
