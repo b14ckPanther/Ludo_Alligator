@@ -147,7 +147,7 @@ public final class CsvHistoryRepository implements HistoryRepository {
     }
 
     /** HH:MM:SS, hours always with two digits (DB-1). */
-    static String formatDuration(long seconds) {
+    public static String formatDuration(long seconds) {
         return String.format(Locale.ROOT, "%02d:%02d:%02d", seconds / 3600, seconds / 60 % 60, seconds % 60);
     }
 

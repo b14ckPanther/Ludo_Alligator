@@ -1,8 +1,12 @@
 package Controller;
 
 import Model.BoardFactory;
+import Model.CsvHistoryRepository;
+import Model.DataFiles;
 import Model.Game;
 import Model.GameConfig;
+import Model.GameRecord;
+import Model.HistoryRepository;
 import Model.Player;
 import View.MainFrame;
 import View.game.GameScreen;
@@ -10,6 +14,7 @@ import View.screens.HomeScreen;
 import View.screens.ResultsScreen;
 import View.screens.SetupScreen;
 
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -21,6 +26,7 @@ import java.util.Random;
 public final class AppController {
     private final MainFrame frame;
     private final Random random = new Random();
+    private final HistoryRepository history = new CsvHistoryRepository(DataFiles.historyFile());
     private GameConfig lastConfig;
 
     public AppController(MainFrame frame) {
@@ -47,14 +53,26 @@ public final class AppController {
         controller.start();
     }
 
-    /** Shows the results of a finished game (P-END-3). */
+    /**
+     * Saves a finished game to the history (P-END-4) and shows the results
+     * (P-END-3). If saving fails the results are still shown, with the error
+     * under them (P-END-5).
+     */
     public void showResults(Game game) {
         List<ResultsScreen.Place> places = new ArrayList<>();
         for (Player p : game.ranking()) {
             places.add(new ResultsScreen.Place(p.rank(), p.name(), p.color()));
         }
         long seconds = game.clock().elapsedMillis() / 1000;
-        frame.showScreen(new ResultsScreen(places, seconds, this::playAgain, this::showHome));
+        ResultsScreen screen = new ResultsScreen(places, seconds, this::playAgain, this::showHome);
+        try {
+            GameRecord saved = history.save(GameRecord.of(game, LocalDateTime.now()));
+            screen.setMessage("Game time " + CsvHistoryRepository.formatDuration(seconds)
+                    + ". Saved to the history as game #" + saved.id() + ".", false);
+        } catch (RuntimeException e) {
+            screen.setMessage("The game couldn't be saved to the history. " + e.getMessage(), true);
+        }
+        frame.showScreen(screen);
     }
 
     /** Starts a new game with the same players, colors and difficulty. */
