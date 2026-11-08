@@ -1,0 +1,16 @@
+# Build output
+# (dist/Ludo_Alligator.jar is kept in git: every submission needs a runnable JAR)
+build/
+target/
+out/
+*.class
+
+# IDE and OS files
+.idea/
+*.iml
+.vscode/
+.settings/
+.project
+.classpath
+.DS_Store
+Thumbs.db

@@ -1,0 +1,5 @@
+# Keep line endings right for each launcher
+*.sh   text eol=lf
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.jar  binary
