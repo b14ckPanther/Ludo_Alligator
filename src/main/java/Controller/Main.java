@@ -20,6 +20,7 @@ public final class Main {
                 // keep the default look and feel
             }
             MainFrame frame = new MainFrame();
+            new AppController(frame).showHome();
             frame.setVisible(true);
         });
     }

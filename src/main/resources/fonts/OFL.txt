@@ -1,0 +1,12 @@
+The fonts in this folder are licensed under the SIL Open Font License, Version 1.1.
+https://openfontlicense.org
+
+Unbounded            Copyright 2022 The Unbounded Project Authors
+Bricolage Grotesque  Copyright 2022 The Bricolage Grotesque Project Authors
+JetBrains Mono       Copyright 2020 The JetBrains Mono Project Authors
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of
+the Font Software, to use, study, copy, merge, embed, modify, redistribute, and
+sell modified and unmodified copies of the Font Software, subject to the
+conditions of the SIL Open Font License 1.1. The fonts may be bundled with any
+software, provided each copy contains the copyright notice and this license.
