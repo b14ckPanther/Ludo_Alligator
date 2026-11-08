@@ -12,6 +12,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  */
 public final class Game {
     private final Difficulty difficulty;
+    private final Board board;
     private final List<Player> players = new ArrayList<>();
     private final List<GameListener> listeners = new CopyOnWriteArrayList<>();
     private int current;
@@ -20,8 +21,9 @@ public final class Game {
      * Creates the players from the setup. They are sorted clockwise by castle
      * (Red, Green, Yellow, Blue), so the first color in play starts (P-SET-5).
      */
-    public Game(GameConfig config) {
+    public Game(GameConfig config, Board board) {
         this.difficulty = config.difficulty();
+        this.board = board;
         config.seats().stream()
                 .sorted(Comparator.comparingInt(seat -> seat.color().quadrant()))
                 .forEach(seat -> players.add(new Player(seat.name(), seat.color())));
@@ -37,6 +39,15 @@ public final class Game {
 
     public Difficulty difficulty() {
         return difficulty;
+    }
+
+    public Board board() {
+        return board;
+    }
+
+    /** The square a piece stands on, or null while it is in the castle. */
+    public Square squareOf(Piece piece) {
+        return piece.inCastle() ? null : board.route(piece.color()).get(piece.position());
     }
 
     /** The players in turn order. */
