@@ -24,6 +24,7 @@ public final class Game {
     private final GameClock clock = new GameClock();
     private final List<Player> players = new ArrayList<>();
     private final List<GameListener> listeners = new CopyOnWriteArrayList<>();
+    private final List<Player> ranking = new ArrayList<>();
 
     private int current;
     private TurnPhase phase = TurnPhase.ROLL;
@@ -84,6 +85,11 @@ public final class Game {
     /** The last roll of the current turn, or null before the first roll. */
     public DiceRoll lastRoll() {
         return lastRoll;
+    }
+
+    /** Players in finishing order (1st first). Complete once the game is over. */
+    public List<Player> ranking() {
+        return Collections.unmodifiableList(ranking);
     }
 
     /** The moves the current player can choose from (only in CHOOSE_MOVE). */
@@ -174,6 +180,7 @@ public final class Game {
             captureAt(piece);
         } else {
             log(piece + " reached the finish (" + finishedCount(player) + "/" + Player.PIECES + ")");
+            checkPlayerDone(player);
         }
         endAction();
     }
@@ -261,12 +268,40 @@ public final class Game {
         return player.name() + " can't move " + roll.step() + ", it would go past the finish";
     }
 
+    /**
+     * P-END-1: a player with all four pieces home takes the next place.
+     * P-END-2: when only one player still has pieces on the board the game
+     * ends, and that player is last.
+     */
+    private void checkPlayerDone(Player player) {
+        if (player.hasFinished() || finishedCount(player) < Player.PIECES) {
+            return;
+        }
+        ranking.add(player);
+        player.setRank(ranking.size());
+        fire(l -> l.playerFinished(player, player.rank()));
+        log(player.name() + " brought all four pieces home and is #" + player.rank());
+
+        List<Player> stillPlaying = players.stream().filter(p -> !p.hasFinished()).toList();
+        if (stillPlaying.size() == 1) {
+            Player last = stillPlaying.get(0);
+            ranking.add(last);
+            last.setRank(ranking.size());
+            clock.pause();
+            setPhase(TurnPhase.GAME_OVER);
+            fire(l -> l.gameOver(List.copyOf(ranking)));
+        }
+    }
+
     /** Called after a roll or a move is finished: roll again after a six, else next player. */
     void endAction() {
         if (phase == TurnPhase.GAME_OVER) {
             return;
         }
-        if (extraRoll) {
+        if (currentPlayer().hasFinished()) {
+            // a finished player is skipped, even after a six (P-END-1)
+            nextPlayer();
+        } else if (extraRoll) {
             extraRoll = false;
             log(currentPlayer().name() + " rolled a six and rolls again");
             setPhase(TurnPhase.ROLL);
