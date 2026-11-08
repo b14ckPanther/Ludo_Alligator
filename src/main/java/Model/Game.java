@@ -96,6 +96,21 @@ public final class Game {
         return piece.inCastle() ? null : board.route(piece.color()).get(piece.position());
     }
 
+    /** True if the piece reached the finish square. */
+    public boolean isFinished(Piece piece) {
+        return piece.position() == board.finishIndex();
+    }
+
+    /** True if the piece is in its home column (between the arrow and the finish). */
+    public boolean inHomeColumn(Piece piece) {
+        return piece.position() >= board.homeColumnStart() && !isFinished(piece);
+    }
+
+    /** How many of the player's pieces are at the finish. */
+    public long finishedCount(Player player) {
+        return player.pieces().stream().filter(this::isFinished).count();
+    }
+
     // ------------------------------------------------------------------ actions
 
     /** Starts the clock and announces the first player. Called once. */
@@ -138,19 +153,40 @@ public final class Game {
 
     /**
      * All moves the player can make with this roll.
-     * The movement rules (P-MOV-1 to 4) are added in T1.7; until then no
-     * piece can move, so every turn passes after the roll.
+     * <ul>
+     *   <li>P-MOV-1: a piece leaves the castle only on a six, onto its start square.
+     *       The player may also use the six for a piece that is already out.</li>
+     *   <li>P-MOV-2: a piece on the track moves exactly the movement value.</li>
+     *   <li>P-MOV-3: a piece in its home column moves by the step die only.
+     *       On Easy both are the same, but this keeps the rule right for Medium and Hard.</li>
+     *   <li>P-MOV-4: a move that would go past the finish is not allowed.</li>
+     * </ul>
      */
     List<Move> findLegalMoves(Player player, DiceRoll roll) {
-        return new ArrayList<>();
+        List<Move> moves = new ArrayList<>();
+        for (Piece piece : player.pieces()) {
+            if (piece.inCastle()) {
+                if (roll.isSix()) {
+                    moves.add(new Move(piece, Piece.IN_CASTLE, 0));
+                }
+            } else if (!isFinished(piece)) {
+                int steps = inHomeColumn(piece) ? roll.step() : roll.moveSteps();
+                int target = piece.position() + steps;
+                if (steps > 0 && target <= board.finishIndex()) {
+                    moves.add(new Move(piece, piece.position(), target));
+                }
+            }
+        }
+        return moves;
     }
 
     private String noMoveReason(Player player, DiceRoll roll) {
-        boolean allInCastle = player.pieces().stream().allMatch(Piece::inCastle);
-        if (allInCastle && !roll.isSix()) {
+        boolean noneOnBoard = player.pieces().stream().allMatch(p -> p.inCastle() || isFinished(p));
+        if (noneOnBoard && !roll.isSix()) {
             return player.name() + " needs a six to leave the castle";
         }
-        return player.name() + " can't move with a " + roll.step();
+        // the only pieces out are in the home column and the roll is too big
+        return player.name() + " can't move " + roll.step() + ", it would go past the finish";
     }
 
     /** Called after a roll or a move is finished: roll again after a six, else next player. */
