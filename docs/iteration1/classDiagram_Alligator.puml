@@ -1,0 +1,457 @@
+@startuml classDiagram_Alligator
+' Class diagram of the whole Ludo system (group Alligator).
+' White classes are done in iteration 1. Grey classes with <<iteration 2>> or
+' <<iteration 3>> are planned (SDP 5.2.1) and not implemented yet.
+
+skinparam classAttributeIconSize 0
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 11
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam nodesep 40
+skinparam ranksep 50
+skinparam class {
+  BackgroundColor White
+  BorderColor #444444
+  BackgroundColor<<iteration 2>> #E6E6E6
+  BackgroundColor<<iteration 3>> #E6E6E6
+  BorderColor<<iteration 2>> #888888
+  BorderColor<<iteration 3>> #888888
+  FontColor<<iteration 2>> #555555
+  FontColor<<iteration 3>> #555555
+}
+title Ludo – group Alligator – class diagram (MVC)\nwhite = iteration 1 (done), grey = planned for iteration 2 / 3
+
+package Model {
+
+  enum PlayerColor {
+    RED
+    GREEN
+    YELLOW
+    BLUE
+    + displayName() : String
+    + quadrant() : int
+  }
+
+  enum Difficulty {
+    EASY
+    MEDIUM
+    HARD
+    + isAvailable() : boolean
+    + diceStrategy() : DiceStrategy
+    + csvName() : String
+  }
+
+  enum SquareType {
+    NORMAL
+    SAFE
+    START
+    ARROW
+    HOME
+    FINISH
+    .. iteration 2 / 3 ..
+    QUESTION
+    SURPRISE
+    + isProtected() : boolean
+  }
+
+  enum TurnPhase {
+    ROLL
+    CHOOSE_MOVE
+    GAME_OVER
+    .. iteration 2 / 3 ..
+    ANSWER_QUESTION
+    CHOOSE_SABOTAGE_TARGET
+  }
+
+  class GameConfig <<Builder>> {
+    + {static} MIN_PLAYERS : int = 2
+    + {static} MAX_PLAYERS : int = 4
+    + {static} MAX_NAME_LENGTH : int = 16
+    - difficulty : Difficulty
+    - seats : List<Seat>
+    + {static} builder() : Builder
+    + difficulty() : Difficulty
+    + seats() : List<Seat>
+  }
+
+  class "GameConfig.Builder" as Builder {
+    + difficulty(d : Difficulty) : Builder
+    + seat(name : String, color : PlayerColor) : Builder
+    + build() : GameConfig
+  }
+
+  class "GameConfig.Seat" as Seat <<record>> {
+    + name : String
+    + color : PlayerColor
+  }
+
+  class SetupException {
+    - field : Field
+    - seat : int
+    + field() : Field
+    + seat() : int
+  }
+
+  class Game {
+    - current : int
+    - phase : TurnPhase
+    - lastRoll : DiceRoll
+    - legalMoves : List<Move>
+    - extraRoll : boolean
+    + Game(config : GameConfig, board : Board, random : Random)
+    + addListener(l : GameListener)
+    + start()
+    + roll() : DiceRoll
+    + play(move : Move)
+    + currentPlayer() : Player
+    + players() : List<Player>
+    + ranking() : List<Player>
+    + legalMoves() : List<Move>
+    + squareOf(p : Piece) : Square
+    + piecesOn(s : Square) : List<Piece>
+    + isFinished(p : Piece) : boolean
+    ~ findLegalMoves(p : Player, r : DiceRoll) : List<Move>
+    ~ captureAt(mover : Piece)
+    ~ endAction()
+    ~ nextPlayer()
+    .. iteration 2 / 3 ..
+    + answer(choice : int) : boolean
+    + sabotage(target : Piece)
+    + pause()
+  }
+
+  interface GameListener <<Observer>> {
+    + turnStarted(p : Player)
+    + rolled(p : Player, r : DiceRoll)
+    + pieceMoved(p : Piece, from : int, to : int)
+    + captured(attacker : Piece, victim : Piece)
+    + playerFinished(p : Player, rank : int)
+    + gameOver(ranking : List<Player>)
+    + phaseChanged(phase : TurnPhase)
+    + log(message : String)
+  }
+
+  class Player {
+    + {static} PIECES : int = 4
+    - name : String
+    - color : PlayerColor
+    - rank : int
+    + name() : String
+    + color() : PlayerColor
+    + pieces() : List<Piece>
+    + rank() : int
+    + hasFinished() : boolean
+  }
+
+  class Piece {
+    + {static} IN_CASTLE : int = -1
+    - color : PlayerColor
+    - number : int
+    - position : int
+    + position() : int
+    + inCastle() : boolean
+    ~ moveTo(index : int)
+  }
+
+  class Move <<Command>> <<record>> {
+    + piece : Piece
+    + from : int
+    + to : int
+    + isEnter() : boolean
+  }
+
+  class Board {
+    - size : int
+    + at(row : int, col : int) : Square
+    + track() : List<Square>
+    + route(c : PlayerColor) : List<Square>
+    + finishIndex() : int
+    + homeColumnStart() : int
+  }
+
+  class BoardFactory <<Factory>> {
+    + {static} HOME_SQUARES : int = 5
+    + {static} SAFE_SQUARES : int = 4
+    + {static} create(d : Difficulty, r : Random) : Board
+  }
+
+  class Square {
+    - row : int
+    - col : int
+    - track : boolean
+    - type : SquareType
+    - owner : PlayerColor
+    + isProtected() : boolean
+  }
+
+  class GameClock {
+    - total : long
+    - startedAt : long
+    + start()
+    + pause()
+    + elapsedMillis() : long
+  }
+
+  interface DiceStrategy <<Strategy>> {
+    + roll(r : Random) : DiceRoll
+    + {static} stepDie(r : Random) : int
+  }
+
+  class StandardDiceStrategy
+  class BoostDiceStrategy <<iteration 2>>
+  class UltraBoostDiceStrategy <<iteration 3>>
+
+  class DiceRoll <<record>> {
+    + step : int
+    + isSix() : boolean
+    + moveSteps() : int
+  }
+
+  class GameRecord <<record>> {
+    + id : int
+    + endedAt : LocalDateTime
+    + difficulty : Difficulty
+    + durationSeconds : long
+    + places : List<String>
+    + {static} of(g : Game, end : LocalDateTime) : GameRecord
+  }
+
+  interface HistoryRepository <<Repository>> {
+    + findAll() : List<GameRecord>
+    + save(r : GameRecord) : GameRecord
+  }
+
+  class CsvHistoryRepository {
+    + {static} HEADER : String
+    - file : Path
+    - lastId : int
+  }
+
+  class DataFiles {
+    + {static} folder() : Path
+    + {static} historyFile() : Path
+  }
+
+  class Question <<iteration 2>> {
+    - id : String
+    - level : QuestionLevel
+    - topic : String
+    - text : String
+    - answers : String[4]
+    - correct : int
+  }
+
+  enum QuestionLevel <<iteration 2>> {
+    EASY
+    MEDIUM
+    HARD
+    + steps() : int
+  }
+
+  interface QuestionRepository <<iteration 2>> {
+    + findAll() : List<Question>
+    + save(q : Question)
+    + delete(id : String)
+  }
+
+  class EncryptedQuestionRepository <<iteration 2>>
+  class SecuredQuestionRepository <<iteration 2>> {
+    proxy: checks the admin session
+  }
+  class QuestionDeck <<iteration 2>> {
+    + draw(level : QuestionLevel) : Question
+  }
+
+  class AuthService <<iteration 2>> {
+    + signIn(user : String, password : char[]) : Session
+    + changePassword(...)
+  }
+  class Session <<iteration 2>>
+  class PasswordHasher <<iteration 2>>
+
+  enum Surprise <<iteration 3>> {
+    ROCKET
+    SABOTAGE
+    BACK_TO_CASTLE
+    BACK_THREE
+    LOSE_TURN
+    ULTRA_ROLL
+  }
+
+  class BotBrain <<iteration 3>> {
+    + chooseMove(g : Game, moves : List<Move>) : Move
+  }
+}
+
+package Controller {
+  class Main {
+    + {static} main(args : String[])
+  }
+
+  class AppController {
+    - lastConfig : GameConfig
+    + showHome()
+    + showSetup()
+    + startGame(c : GameConfig)
+    + showResults(g : Game)
+    + showHistory()
+    + playAgain()
+    + exit()
+  }
+
+  class GameController {
+    + attach(s : GameScreen)
+    + start()
+    + roll()
+    + pick(p : Piece)
+  }
+
+  class AdminController <<iteration 2>>
+}
+
+package View {
+  class MainFrame {
+    + showScreen(s : Screen)
+    + focusBackdrop(c : PlayerColor)
+  }
+
+  abstract class Screen {
+    + onShow()
+    + onHide()
+  }
+
+  class HomeScreen
+  class SetupScreen
+  class GameScreen {
+    + showPhase()
+    + sequencer() : Sequencer
+  }
+  interface "GameScreen.Actions" as Actions {
+    + roll()
+    + pick(p : Piece)
+  }
+  class ResultsScreen {
+    + setMessage(text : String, error : boolean)
+  }
+  class HistoryScreen
+  class BoardView {
+    + setMovable(moves : List<Move>)
+    + animateMove(p : Piece, from : int, to : int, done : Runnable)
+    + animateCapture(a : Piece, v : Piece, done : Runnable)
+  }
+  class DiceView {
+    + play(r : DiceRoll, done : Runnable)
+  }
+  class Sequencer {
+    + add(step)
+    + whenIdle(callback : Runnable)
+  }
+  class BoardKey
+
+  class QuestionOverlay <<iteration 2>>
+  class PauseOverlay <<iteration 2>>
+  class AdminLoginScreen <<iteration 2>>
+  class QuestionBankScreen <<iteration 2>>
+  class SurpriseOverlay <<iteration 3>>
+  class Sfx <<iteration 3>> <<Singleton>>
+
+  package "View.ui" as ui {
+    class Theme
+    class GameButton
+    class Segmented<T>
+    class Field
+    class Surface
+    class Icons
+    class Anim
+    class Backdrop
+  }
+}
+
+' ---------------- Model relations
+GameConfig +-- Builder
+GameConfig +-- Seat
+Builder ..> GameConfig : builds
+Builder ..> SetupException : throws
+Seat --> PlayerColor
+GameConfig --> Difficulty
+
+Game --> GameConfig : created from
+Game *-- "2..4" Player
+Game o-- "1" Board
+Game *-- "1" GameClock
+Game --> "1" DiceStrategy
+Game --> TurnPhase
+Game o-- "*" GameListener : notifies
+Game ..> Move : makes / plays
+Game ..> DiceRoll
+Player *-- "4" Piece
+Player --> PlayerColor
+Piece --> PlayerColor
+Move --> Piece
+Board *-- "*" Square
+Square --> SquareType
+BoardFactory ..> Board : creates
+BoardFactory ..> Difficulty
+Difficulty ..> DiceStrategy : chooses
+DiceStrategy <|.. StandardDiceStrategy
+DiceStrategy <|.. BoostDiceStrategy
+DiceStrategy <|.. UltraBoostDiceStrategy
+DiceStrategy ..> DiceRoll
+HistoryRepository <|.. CsvHistoryRepository
+CsvHistoryRepository ..> GameRecord
+CsvHistoryRepository ..> DataFiles
+GameRecord ..> Game : of()
+
+Question --> QuestionLevel
+QuestionRepository <|.. EncryptedQuestionRepository
+QuestionRepository <|.. SecuredQuestionRepository
+SecuredQuestionRepository o-- EncryptedQuestionRepository : proxy for
+SecuredQuestionRepository --> AuthService
+AuthService --> Session
+AuthService --> PasswordHasher
+QuestionDeck --> QuestionRepository
+Game ..> QuestionDeck
+Game ..> Surprise
+BotBrain ..> Game
+
+' ---------------- Controller relations
+Main ..> AppController
+Main ..> MainFrame
+AppController --> MainFrame
+AppController --> HistoryRepository
+AppController ..> BoardFactory
+AppController ..> GameController : creates
+AppController ..> Screen : shows
+GameController --> Game
+GameController --> GameScreen
+GameController ..|> Actions
+GameController ..|> GameListener
+AdminController --> SecuredQuestionRepository
+AdminController ..> QuestionBankScreen
+
+' ---------------- View relations
+MainFrame o-- Screen
+Screen <|-- HomeScreen
+Screen <|-- SetupScreen
+Screen <|-- GameScreen
+Screen <|-- ResultsScreen
+Screen <|-- HistoryScreen
+Screen <|-- AdminLoginScreen
+Screen <|-- QuestionBankScreen
+GameScreen +-- Actions
+GameScreen ..|> GameListener
+GameScreen --> Game : reads
+GameScreen --> Actions
+GameScreen *-- BoardView
+GameScreen *-- DiceView
+GameScreen *-- Sequencer
+GameScreen *-- BoardKey
+GameScreen ..> QuestionOverlay
+GameScreen ..> PauseOverlay
+GameScreen ..> SurpriseOverlay
+BoardView --> Game : reads
+SetupScreen ..> GameConfig : builds
+HistoryScreen ..> GameRecord
+@enduml
