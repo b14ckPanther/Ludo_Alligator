@@ -36,9 +36,11 @@ public final class AppController {
     public void startGame(GameConfig config) {
         lastConfig = config;
         Game game = new Game(config, BoardFactory.create(config.difficulty(), random), random);
-        GameScreen screen = new GameScreen(game, frame);
+        GameController controller = new GameController(game);
+        GameScreen screen = new GameScreen(game, frame, controller);
+        controller.attach(screen);
         frame.showScreen(screen);
-        game.start();
+        controller.start();
     }
 
     public void exit() {
