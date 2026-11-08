@@ -2,6 +2,8 @@ package Controller;
 
 import Model.Game;
 import Model.GameListener;
+import Model.Move;
+import Model.Piece;
 import Model.TurnPhase;
 import View.game.GameScreen;
 
@@ -37,6 +39,23 @@ public final class GameController implements GameScreen.Actions, GameListener {
         // the model checks the phase too, this just avoids the exception
         if (game.phase() == TurnPhase.ROLL) {
             game.roll();
+        }
+    }
+
+    /**
+     * The player clicked one of their pieces. If it has a legal move, play it.
+     * Castle pieces are all the same, so any of them takes the enter move.
+     */
+    @Override
+    public void pick(Piece piece) {
+        if (game.phase() != TurnPhase.CHOOSE_MOVE) {
+            return;
+        }
+        for (Move move : game.legalMoves()) {
+            if (move.piece() == piece) {
+                game.play(move);
+                return;
+            }
         }
     }
 
