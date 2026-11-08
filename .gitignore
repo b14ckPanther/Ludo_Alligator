@@ -14,3 +14,7 @@ out/
 .classpath
 .DS_Store
 Thumbs.db
+
+# saved games (made when the game runs)
+data/
+dist/data/
