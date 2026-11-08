@@ -19,6 +19,8 @@ import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
 import java.awt.RadialGradientPaint;
+import java.awt.event.MouseAdapter;
+import java.awt.event.MouseEvent;
 import java.awt.geom.Ellipse2D;
 import java.awt.geom.GeneralPath;
 import java.awt.geom.Point2D;
@@ -26,7 +28,10 @@ import java.awt.geom.RoundRectangle2D;
 import java.awt.image.BufferedImage;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.function.Consumer;
 
 /**
  * Draws the board and the pieces.
@@ -53,11 +58,117 @@ public final class BoardView extends JComponent {
     private double oy;
     private double intro = 1;
 
+    /**
+     * Where each piece is drawn right now. During an animation this is
+     * behind the model: the model already has the new position, the screen
+     * still walks the piece there square by square.
+     */
+    private final Map<Piece, Integer> shown = new IdentityHashMap<>();
+    /** Piece that is moving right now, with its position between two squares. */
+    private Piece walking;
+    private Point2D.Double walkAt;
+    private double hop;
+    private Consumer<Piece> onPick = p -> { };
+
     public BoardView(Game game) {
         this.game = game;
         this.board = game.board();
         this.n = board.size();
         setOpaque(false);
+        for (Player p : game.players()) {
+            for (Piece piece : p.pieces()) {
+                shown.put(piece, piece.position());
+            }
+        }
+        addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                Piece piece = pieceAt(e.getX(), e.getY());
+                if (piece != null) {
+                    onPick.accept(piece);
+                }
+            }
+        });
+    }
+
+    /** Called with the piece the player clicked on. */
+    public void onPick(Consumer<Piece> listener) {
+        this.onPick = listener;
+    }
+
+    /** The piece drawn at this pixel, or null. */
+    private Piece pieceAt(int x, int y) {
+        layoutBoard();
+        Piece best = null;
+        double bestDistance = cell * 0.5;
+        for (Piece piece : shown.keySet()) {
+            Point2D.Double p = pointOf(piece);
+            double d = Math.hypot(px(p.x) - x, py(p.y) - y);
+            if (d < bestDistance) {
+                bestDistance = d;
+                best = piece;
+            }
+        }
+        return best;
+    }
+
+    /**
+     * Walks a piece from one route index to another, one square at a time,
+     * and calls done when it has arrived.
+     */
+    public void animateMove(Piece piece, int from, int to, Runnable done) {
+        if (from == Piece.IN_CASTLE) {
+            // out of the castle: one jump onto the start square
+            Point2D.Double a = castleSlot(piece.color(), piece.number());
+            Point2D.Double b = routePoint(piece, 0);
+            jump(piece, a, b, 1.2, 420, () -> land(piece, to, done));
+            return;
+        }
+        int steps = Math.max(1, to - from);
+        int perSquare = (int) Math.max(70, Math.min(160, 1800.0 / steps));
+        step(piece, from, to, perSquare, done);
+    }
+
+    private void step(Piece piece, int at, int to, int ms, Runnable done) {
+        if (at >= to) {
+            land(piece, to, done);
+            return;
+        }
+        Point2D.Double a = routePoint(piece, at);
+        Point2D.Double b = routePoint(piece, at + 1);
+        jump(piece, a, b, 0.42, ms, () -> {
+            shown.put(piece, at + 1);
+            step(piece, at + 1, to, ms, done);
+        });
+    }
+
+    /** Moves the piece in a small arc from a to b. */
+    private void jump(Piece piece, Point2D.Double a, Point2D.Double b, double height, int ms, Runnable done) {
+        walking = piece;
+        Anim.run(ms, Anim.Ease.LINEAR, t -> {
+            double e = Anim.Ease.IN_OUT_CUBIC.apply(t);
+            walkAt = new Point2D.Double(Anim.lerp(a.x, b.x, e), Anim.lerp(a.y, b.y, e));
+            hop = Math.sin(Math.PI * t) * height;
+            repaint();
+        }, done);
+    }
+
+    private void land(Piece piece, int to, Runnable done) {
+        shown.put(piece, to);
+        walking = null;
+        walkAt = null;
+        hop = 0;
+        repaint();
+        done.run();
+    }
+
+    /** Center of a route square (the finish uses the middle of the color's triangle). */
+    private Point2D.Double routePoint(Piece piece, int index) {
+        if (index == board.finishIndex()) {
+            return finishSpot(piece.color(), 2);
+        }
+        Square sq = board.route(piece.color()).get(index);
+        return new Point2D.Double(sq.col() + 0.5, sq.row() + 0.5);
     }
 
     /** Short opening animation: the board grows in from the middle. */
@@ -113,13 +224,17 @@ public final class BoardView extends JComponent {
      * they are moved a little apart in a circle so all of them can be seen.
      */
     Point2D.Double pointOf(Piece piece) {
-        if (piece.inCastle()) {
+        if (piece == walking && walkAt != null) {
+            return walkAt;
+        }
+        int at = shown.get(piece);
+        if (at == Piece.IN_CASTLE) {
             return castleSlot(piece.color(), piece.number());
         }
-        if (piece.position() == board.finishIndex()) {
+        if (at == board.finishIndex()) {
             return finishSpot(piece.color(), piece.number());
         }
-        Square square = game.squareOf(piece);
+        Square square = board.route(piece.color()).get(at);
         List<Piece> here = piecesOn(square);
         double cx = square.col() + 0.5;
         double cy = square.row() + 0.5;
@@ -133,20 +248,27 @@ public final class BoardView extends JComponent {
 
     /** Pieces on a shared square are drawn smaller, finished ones even smaller. */
     double scaleOf(Piece piece) {
-        if (piece.inCastle()) {
+        if (piece == walking) {
             return 1;
         }
-        if (piece.position() == board.finishIndex()) {
+        int at = shown.get(piece);
+        if (at == Piece.IN_CASTLE) {
+            return 1;
+        }
+        if (at == board.finishIndex()) {
             return 0.55;
         }
-        return piecesOn(game.squareOf(piece)).size() > 1 ? 0.72 : 1;
+        return piecesOn(board.route(piece.color()).get(at)).size() > 1 ? 0.72 : 1;
     }
 
+    /** Pieces drawn on a square right now (not the one that is moving). */
     private List<Piece> piecesOn(Square square) {
         List<Piece> result = new ArrayList<>();
         for (Player p : game.players()) {
             for (Piece piece : p.pieces()) {
-                if (!piece.inCastle() && piece.position() != board.finishIndex() && game.squareOf(piece) == square) {
+                int at = shown.get(piece);
+                if (piece != walking && at >= 0 && at < board.finishIndex()
+                        && board.route(piece.color()).get(at) == square) {
                     result.add(piece);
                 }
             }
@@ -359,10 +481,12 @@ public final class BoardView extends JComponent {
             all.addAll(p.pieces());
         }
         // draw from top to bottom so lower pieces overlap the ones above them
-        all.sort(Comparator.comparingDouble(p -> pointOf(p).y));
+        // the moving piece last, so it is on top
+        all.sort(Comparator.comparingDouble(p -> p == walking ? Double.MAX_VALUE : pointOf(p).y));
         for (Piece piece : all) {
             Point2D.Double p = pointOf(piece);
-            paintToken(g, piece.color(), px(p.x), py(p.y), cell * PIECE_SIZE * scaleOf(piece), (float) intro);
+            double lift = piece == walking ? hop * cell : 0;
+            paintToken(g, piece.color(), px(p.x), py(p.y) - lift, cell * PIECE_SIZE * scaleOf(piece), (float) intro);
         }
     }
 

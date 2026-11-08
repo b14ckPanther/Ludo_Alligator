@@ -3,6 +3,7 @@ package View.game;
 import Model.DiceRoll;
 import Model.Game;
 import Model.GameListener;
+import Model.Piece;
 import Model.Player;
 import Model.TurnPhase;
 import View.MainFrame;
@@ -55,6 +56,8 @@ public final class GameScreen extends Screen implements GameListener {
     /** What the screen asks the controller to do. */
     public interface Actions {
         void roll();
+
+        void pick(Piece piece);
     }
 
     private final Game game;
@@ -94,6 +97,7 @@ public final class GameScreen extends Screen implements GameListener {
         add(base, BorderLayout.CENTER);
 
         dice.onRoll(this::onRollPressed);
+        boardView.onPick(this::onPiecePicked);
         rollButton.onClick(this::onRollPressed);
         clockTimer = new Timer(250, e -> clockLabel.setText(Theme.formatDuration(game.clock().elapsedMillis() / 1000)));
         bindKeys();
@@ -185,6 +189,23 @@ public final class GameScreen extends Screen implements GameListener {
                 onRollPressed();
             }
         });
+        // keys 1-4 pick the current player's piece with that number (SRS 3.1.1)
+        for (int i = 1; i <= 4; i++) {
+            int number = i - 1;
+            getInputMap(WHEN_IN_FOCUSED_WINDOW).put(KeyStroke.getKeyStroke(String.valueOf(i)), "piece" + i);
+            getActionMap().put("piece" + i, new AbstractAction() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    onPiecePicked(game.currentPlayer().pieces().get(number));
+                }
+            });
+        }
+    }
+
+    private void onPiecePicked(Piece piece) {
+        if (game.phase() == TurnPhase.CHOOSE_MOVE && sequencer.isIdle() && piece.color() == game.currentPlayer().color()) {
+            actions.pick(piece);
+        }
     }
 
     private void onRollPressed() {
@@ -268,11 +289,20 @@ public final class GameScreen extends Screen implements GameListener {
             setRollEnabled(false);
             rollResult.setText(" ");
             dice.play(roll, () -> {
-                rollResult.setText(roll.isSix() ? "Six! You get another roll" : "You rolled " + roll.step());
+                rollResult.setText(roll.isSix() ? "Six! Bring a piece out or move, then roll again"
+                        : "Move " + roll.step() + (roll.step() == 1 ? " square" : " squares"));
                 rollResult.setForeground(roll.isSix() ? Theme.GOLD : Theme.CHALK);
                 Anim.delay(roll.isSix() ? 380 : 220, done);
             });
         });
+    }
+
+    @Override
+    public void pieceMoved(Piece piece, int from, int to) {
+        sequencer.add(done -> boardView.animateMove(piece, from, to, () -> {
+            players.repaint();
+            done.run();
+        }));
     }
 
     @Override
@@ -395,7 +425,7 @@ public final class GameScreen extends Screen implements GameListener {
                     g.setColor(Theme.GOLD);
                     g.drawString("#" + p.rank(), w - 120, y + 24);
                 }
-                long home = p.pieces().stream().filter(piece -> piece.position() == game.board().finishIndex()).count();
+                long home = game.finishedCount(p);
                 for (int i = 0; i < 4; i++) {
                     double dotX = w - 26 - (3 - i) * 17;
                     if (i < home) {
