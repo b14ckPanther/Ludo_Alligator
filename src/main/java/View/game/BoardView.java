@@ -2,6 +2,7 @@ package View.game;
 
 import Model.Board;
 import Model.Game;
+import Model.Move;
 import Model.Piece;
 import Model.Player;
 import Model.PlayerColor;
@@ -12,9 +13,11 @@ import View.ui.Icons.Icon;
 import View.ui.Theme;
 
 import javax.swing.JComponent;
+import javax.swing.Timer;
 import java.awt.AlphaComposite;
 import java.awt.BasicStroke;
 import java.awt.Color;
+import java.awt.Cursor;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
@@ -69,6 +72,11 @@ public final class BoardView extends JComponent {
     private Point2D.Double walkAt;
     private double hop;
     private Consumer<Piece> onPick = p -> { };
+    /** Pieces the current player can move with this roll, and where each would go (P-DIC-8). */
+    private Map<Piece, Move> movable = Map.of();
+    private Piece hovered;
+    private final long born = System.nanoTime();
+    private final Timer pulse = new Timer(1000 / 30, e -> repaint());
 
     public BoardView(Game game) {
         this.game = game;
@@ -80,7 +88,7 @@ public final class BoardView extends JComponent {
                 shown.put(piece, piece.position());
             }
         }
-        addMouseListener(new MouseAdapter() {
+        MouseAdapter mouse = new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 Piece piece = pieceAt(e.getX(), e.getY());
@@ -88,7 +96,58 @@ public final class BoardView extends JComponent {
                     onPick.accept(piece);
                 }
             }
-        });
+
+            @Override
+            public void mouseMoved(MouseEvent e) {
+                setHovered(pieceAt(e.getX(), e.getY()));
+            }
+
+            @Override
+            public void mouseExited(MouseEvent e) {
+                setHovered(null);
+            }
+        };
+        addMouseListener(mouse);
+        addMouseMotionListener(mouse);
+    }
+
+    /** Shows which pieces can move. Pass an empty list to clear. */
+    public void setMovable(List<Move> moves) {
+        Map<Piece, Move> map = new IdentityHashMap<>();
+        for (Move m : moves) {
+            map.put(m.piece(), m);
+        }
+        movable = map;
+        if (map.isEmpty()) {
+            pulse.stop();
+            hovered = null;
+        } else {
+            pulse.start();
+        }
+        updateCursor();
+        repaint();
+    }
+
+    /** True if this piece is one of the highlighted ones. */
+    public boolean isMovable(Piece piece) {
+        return movable.containsKey(piece);
+    }
+
+    public void clearMovable() {
+        setMovable(List.of());
+    }
+
+    private void setHovered(Piece piece) {
+        if (piece != hovered) {
+            hovered = piece;
+            updateCursor();
+            repaint();
+        }
+    }
+
+    private void updateCursor() {
+        boolean canClick = hovered != null && movable.containsKey(hovered);
+        setCursor(Cursor.getPredefinedCursor(canClick ? Cursor.HAND_CURSOR : Cursor.DEFAULT_CURSOR));
     }
 
     /** Called with the piece the player clicked on. */
@@ -306,6 +365,7 @@ public final class BoardView extends JComponent {
         gb.drawImage(cache, 0, 0, getWidth(), getHeight(), null);
         gb.dispose();
 
+        paintHighlights(g);
         paintPieces(g);
         g.dispose();
     }
@@ -475,6 +535,48 @@ public final class BoardView extends JComponent {
         Icons.draw(g, Icon.CROWN, px(mid) - r * 0.62, py(mid) - r * 0.66, r * 1.24, new Color(0xC8952A));
     }
 
+    /**
+     * A pulsing ring around every piece that can move. When the mouse is on
+     * one of them, dots show the way and a dashed ring shows where it will
+     * land, so the player sees the result before clicking.
+     */
+    private void paintHighlights(Graphics2D g) {
+        if (movable.isEmpty() || walking != null) {
+            return;
+        }
+        double t = (System.nanoTime() - born) / 1e9;
+        double beat = 0.5 + 0.5 * Math.sin(t * 5);
+        for (Piece piece : movable.keySet()) {
+            Point2D.Double p = pointOf(piece);
+            double r = cell * (0.42 + 0.06 * beat) * scaleOf(piece);
+            Color c = Theme.player(piece.color());
+            g.setColor(Theme.alpha(c, 0.25f + 0.2f * (float) beat));
+            g.fill(new Ellipse2D.Double(px(p.x) - r * 1.25, py(p.y) - r * 1.25, r * 2.5, r * 2.5));
+            g.setColor(Theme.alpha(Color.WHITE, 0.95f));
+            g.setStroke(new BasicStroke((float) (cell * 0.06)));
+            g.draw(new Ellipse2D.Double(px(p.x) - r, py(p.y) - r, r * 2, r * 2));
+        }
+
+        Move move = hovered == null ? null : movable.get(hovered);
+        if (move == null) {
+            return;
+        }
+        PlayerColor color = hovered.color();
+        g.setColor(Theme.alpha(Theme.playerDeep(color), 0.85f));
+        int first = move.isEnter() ? 0 : move.from() + 1;
+        for (int i = first; i < move.to(); i++) {
+            Point2D.Double p = routePoint(hovered, i);
+            double r = cell * 0.09;
+            g.fill(new Ellipse2D.Double(px(p.x) - r, py(p.y) - r, r * 2, r * 2));
+        }
+        Point2D.Double dest = routePoint(hovered, move.to());
+        double r = cell * 0.36;
+        g.setStroke(new BasicStroke((float) (cell * 0.07), BasicStroke.CAP_ROUND, BasicStroke.JOIN_ROUND, 1f,
+                new float[]{(float) (cell * 0.12), (float) (cell * 0.12)}, (float) (t * cell)));
+        g.setColor(Theme.player(color));
+        g.draw(new Ellipse2D.Double(px(dest.x) - r, py(dest.y) - r, r * 2, r * 2));
+    }
+
     private void paintPieces(Graphics2D g) {
         List<Piece> all = new ArrayList<>();
         for (Player p : game.players()) {
@@ -486,7 +588,8 @@ public final class BoardView extends JComponent {
         for (Piece piece : all) {
             Point2D.Double p = pointOf(piece);
             double lift = piece == walking ? hop * cell : 0;
-            paintToken(g, piece.color(), px(p.x), py(p.y) - lift, cell * PIECE_SIZE * scaleOf(piece), (float) intro);
+            double grow = piece == hovered && movable.containsKey(piece) ? 1.08 : 1;
+            paintToken(g, piece.color(), px(p.x), py(p.y) - lift, cell * PIECE_SIZE * scaleOf(piece) * grow, (float) intro);
         }
     }
 
