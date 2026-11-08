@@ -4,6 +4,7 @@ import Model.Difficulty;
 import Model.GameRecord;
 import View.MainFrame;
 import View.Screen;
+import View.ui.A11yComponent;
 import View.ui.GameButton;
 import View.ui.Icons;
 import View.ui.Icons.Icon;
@@ -11,6 +12,7 @@ import View.ui.Segmented;
 import View.ui.Text;
 import View.ui.Theme;
 
+import javax.accessibility.AccessibleRole;
 import javax.swing.BorderFactory;
 import javax.swing.Box;
 import javax.swing.BoxLayout;
@@ -180,10 +182,11 @@ public final class HistoryScreen extends Screen {
     }
 
     /** One saved game: date and time, difficulty and duration, then the places in order. */
-    private static final class Row extends JComponent {
+    private static final class Row extends A11yComponent {
         private final GameRecord r;
 
         Row(GameRecord r) {
+            super(AccessibleRole.LABEL);
             this.r = r;
             setPreferredSize(new Dimension(800, 76));
             setMaximumSize(new Dimension(Integer.MAX_VALUE, 76));
