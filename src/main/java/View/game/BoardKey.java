@@ -29,9 +29,7 @@ final class BoardKey extends JComponent {
     };
 
     BoardKey() {
-        Dimension d = new Dimension(360, 44 + rows.length * 44);
-        setPreferredSize(d);
-        setMaximumSize(new Dimension(Integer.MAX_VALUE, d.height));
+        setPreferredSize(new Dimension(360, 40 + rows.length * 40));
     }
 
     @Override
@@ -71,7 +69,7 @@ final class BoardKey extends JComponent {
             g.setFont(Theme.ui(500, 12.5f));
             g.setColor(Theme.CHALK_DIM);
             g.drawString(r.text(), 62, y + 29);
-            y += 44;
+            y += 40;
         }
         g.dispose();
     }

@@ -35,10 +35,12 @@ public final class AppController {
     /** Called by the setup screen with a config that already passed the checks. */
     public void startGame(GameConfig config) {
         lastConfig = config;
-        Game game = new Game(config, BoardFactory.create(config.difficulty(), random));
-        GameScreen screen = new GameScreen(game, frame);
+        Game game = new Game(config, BoardFactory.create(config.difficulty(), random), random);
+        GameController controller = new GameController(game);
+        GameScreen screen = new GameScreen(game, frame, controller);
+        controller.attach(screen);
         frame.showScreen(screen);
-        game.start();
+        controller.start();
     }
 
     public void exit() {
