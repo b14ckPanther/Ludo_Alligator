@@ -26,8 +26,8 @@ import java.awt.Graphics2D;
 import java.awt.GridLayout;
 
 /**
- * First screen of the game. From here the player starts a new game (P-SET-1)
- * or closes the game.
+ * First screen of the game. From here the player starts a new game (P-SET-1),
+ * opens the game history (P-HIS-1) or closes the game.
  */
 public final class HomeScreen extends Screen {
     private final Wordmark wordmark = new Wordmark();
@@ -35,7 +35,7 @@ public final class HomeScreen extends Screen {
     private final JPanel buttons = new JPanel();
     private final GameButton play;
 
-    public HomeScreen(Runnable onPlay, Runnable onExit) {
+    public HomeScreen(Runnable onPlay, Runnable onHistory, Runnable onExit) {
         JPanel grid = new JPanel(new GridLayout(1, 2));
         grid.setOpaque(false);
         grid.setBorder(BorderFactory.createEmptyBorder(MainFrame.titleBarInset() + 30, 72, 48, 40));
@@ -60,11 +60,14 @@ public final class HomeScreen extends Screen {
         left.add(Box.createVerticalStrut(34));
 
         play = new GameButton("Play", Icon.PLAY, GameButton.Variant.PRIMARY).size(58, 18f).onClick(onPlay);
-        GameButton exit = new GameButton("Exit", Icon.CLOSE, GameButton.Variant.SECONDARY).size(50, 15f).onClick(onExit);
+        GameButton history = new GameButton("Game history", Icon.HISTORY, GameButton.Variant.SECONDARY).size(50, 15f)
+                .onClick(onHistory);
+        GameButton exit = new GameButton("Exit", Icon.CLOSE, GameButton.Variant.GHOST).size(50, 15f).onClick(onExit);
         buttons.setOpaque(false);
         buttons.setLayout(new BoxLayout(buttons, BoxLayout.Y_AXIS));
         buttons.setAlignmentX(Component.LEFT_ALIGNMENT);
         addButton(play);
+        addButton(history);
         addButton(exit);
         left.add(buttons);
         left.add(Box.createVerticalGlue());

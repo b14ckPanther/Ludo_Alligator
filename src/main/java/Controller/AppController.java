@@ -10,6 +10,7 @@ import Model.HistoryRepository;
 import Model.Player;
 import View.MainFrame;
 import View.game.GameScreen;
+import View.screens.HistoryScreen;
 import View.screens.HomeScreen;
 import View.screens.ResultsScreen;
 import View.screens.SetupScreen;
@@ -34,7 +35,7 @@ public final class AppController {
     }
 
     public void showHome() {
-        frame.showScreen(new HomeScreen(this::showSetup, this::exit));
+        frame.showScreen(new HomeScreen(this::showSetup, this::showHistory, this::exit));
     }
 
     /** Opens the setup screen, filled with the last game's players if there was one. */
@@ -73,6 +74,11 @@ public final class AppController {
             screen.setMessage("The game couldn't be saved to the history. " + e.getMessage(), true);
         }
         frame.showScreen(screen);
+    }
+
+    /** Opens the list of saved games (P-HIS-1). */
+    public void showHistory() {
+        frame.showScreen(new HistoryScreen(history.findAll(), this::showHome));
     }
 
     /** Starts a new game with the same players, colors and difficulty. */
