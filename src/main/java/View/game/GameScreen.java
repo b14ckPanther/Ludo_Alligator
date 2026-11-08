@@ -203,7 +203,9 @@ public final class GameScreen extends Screen implements GameListener {
     }
 
     private void onPiecePicked(Piece piece) {
-        if (game.phase() == TurnPhase.CHOOSE_MOVE && sequencer.isIdle() && piece.color() == game.currentPlayer().color()) {
+        // a piece that can't move is ignored, the highlights stay
+        if (game.phase() == TurnPhase.CHOOSE_MOVE && sequencer.isIdle() && boardView.isMovable(piece)) {
+            boardView.clearMovable();
             actions.pick(piece);
         }
     }
@@ -222,9 +224,14 @@ public final class GameScreen extends Screen implements GameListener {
     public void showPhase() {
         boolean canRoll = game.phase() == TurnPhase.ROLL;
         setRollEnabled(canRoll);
+        if (game.phase() == TurnPhase.CHOOSE_MOVE) {
+            boardView.setMovable(game.legalMoves());
+        } else {
+            boardView.clearMovable();
+        }
         setHint(switch (game.phase()) {
             case ROLL -> "Roll the dice (Space)";
-            case CHOOSE_MOVE -> "Pick a piece to move";
+            case CHOOSE_MOVE -> "Pick a glowing piece (1-4)";
             case GAME_OVER -> "Game over";
         });
         turnCard.repaint();
