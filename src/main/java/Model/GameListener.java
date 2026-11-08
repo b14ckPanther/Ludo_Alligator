@@ -17,9 +17,12 @@ public interface GameListener {
      * A piece moved along its route.
      *
      * @param from route index before ({@link Piece#IN_CASTLE} if it came out of the castle)
-     * @param to   route index after
+     * @param to   route index after ({@link Piece#IN_CASTLE} if it was captured)
      */
     default void pieceMoved(Piece piece, int from, int to) { }
+
+    /** {@code attacker} captured {@code victim}; a pieceMoved event back to the castle follows. */
+    default void captured(Piece attacker, Piece victim) { }
 
     /** The game now waits for something else (see {@link TurnPhase}). */
     default void phaseChanged(TurnPhase phase) { }

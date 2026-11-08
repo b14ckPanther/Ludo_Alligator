@@ -72,6 +72,10 @@ public final class BoardView extends JComponent {
     private Point2D.Double walkAt;
     private double hop;
     private Consumer<Piece> onPick = p -> { };
+    private Point2D.Double captureAt;
+    private Color captureColor;
+    private double captureT;
+    private double shake;
     /** Pieces the current player can move with this roll, and where each would go (P-DIC-8). */
     private Map<Piece, Move> movable = Map.of();
     private Piece hovered;
@@ -176,6 +180,13 @@ public final class BoardView extends JComponent {
      * and calls done when it has arrived.
      */
     public void animateMove(Piece piece, int from, int to, Runnable done) {
+        if (to == Piece.IN_CASTLE) {
+            // captured: a high jump back to its place in the castle
+            Point2D.Double a = pointOf(piece);
+            Point2D.Double b = castleSlot(piece.color(), piece.number());
+            jump(piece, a, b, 2.6, 650, () -> land(piece, to, done));
+            return;
+        }
         if (from == Piece.IN_CASTLE) {
             // out of the castle: one jump onto the start square
             Point2D.Double a = castleSlot(piece.color(), piece.number());
@@ -219,6 +230,26 @@ public final class BoardView extends JComponent {
         hop = 0;
         repaint();
         done.run();
+    }
+
+    /**
+     * Short effect where a capture happened: a ring in the attacker's color
+     * grows and fades, and the board shakes a little.
+     */
+    public void animateCapture(Piece attacker, Piece victim, Runnable done) {
+        Point2D.Double at = pointOf(victim);
+        captureAt = at;
+        captureColor = Theme.player(attacker.color());
+        Anim.run(420, Anim.Ease.OUT_CUBIC, t -> {
+            captureT = t;
+            shake = (1 - t) * 0.1;
+            repaint();
+        }, () -> {
+            captureAt = null;
+            shake = 0;
+            repaint();
+            done.run();
+        });
     }
 
     /** Center of a route square (the finish uses the middle of the color's triangle). */
@@ -341,6 +372,9 @@ public final class BoardView extends JComponent {
     protected void paintComponent(Graphics g0) {
         Graphics2D g = Theme.quality(g0);
         layoutBoard();
+        if (shake > 0) {
+            g.translate((Math.random() - 0.5) * shake * cell, (Math.random() - 0.5) * shake * cell);
+        }
         double scale = g.getTransform().getScaleX();
         if (cache == null || cacheW != getWidth() || cacheH != getHeight() || cacheScale != scale) {
             cache = renderBoard(scale);
@@ -367,6 +401,7 @@ public final class BoardView extends JComponent {
 
         paintHighlights(g);
         paintPieces(g);
+        paintCapture(g);
         g.dispose();
     }
 
@@ -575,6 +610,16 @@ public final class BoardView extends JComponent {
                 new float[]{(float) (cell * 0.12), (float) (cell * 0.12)}, (float) (t * cell)));
         g.setColor(Theme.player(color));
         g.draw(new Ellipse2D.Double(px(dest.x) - r, py(dest.y) - r, r * 2, r * 2));
+    }
+
+    private void paintCapture(Graphics2D g) {
+        if (captureAt == null) {
+            return;
+        }
+        double r = cell * (0.4 + captureT * 0.9);
+        g.setColor(Theme.alpha(captureColor, (float) (1 - captureT)));
+        g.setStroke(new BasicStroke((float) (cell * 0.12 * (1 - captureT) + 1)));
+        g.draw(new Ellipse2D.Double(px(captureAt.x) - r, py(captureAt.y) - r, r * 2, r * 2));
     }
 
     private void paintPieces(Graphics2D g) {

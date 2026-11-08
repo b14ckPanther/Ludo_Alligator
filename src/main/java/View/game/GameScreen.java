@@ -313,6 +313,11 @@ public final class GameScreen extends Screen implements GameListener {
     }
 
     @Override
+    public void captured(Piece attacker, Piece victim) {
+        sequencer.add(done -> boardView.animateCapture(attacker, victim, done));
+    }
+
+    @Override
     public void log(String message) {
         sequencer.add(done -> {
             feed.add(message);

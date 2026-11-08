@@ -170,13 +170,58 @@ public final class Game {
 
         if (move.isEnter()) {
             log(player.name() + " brings " + piece + " out of the castle");
-        } else if (isFinished(piece)) {
+        } else if (!isFinished(piece)) {
+            captureAt(piece);
+        } else {
             log(piece + " reached the finish (" + finishedCount(player) + "/" + Player.PIECES + ")");
         }
         endAction();
     }
 
     // ------------------------------------------------------------------ rules
+
+    /** All pieces standing on this square right now (not in a castle, not finished). */
+    public List<Piece> piecesOn(Square square) {
+        List<Piece> result = new ArrayList<>();
+        for (Player p : players) {
+            for (Piece piece : p.pieces()) {
+                if (!isFinished(piece) && squareOf(piece) == square) {
+                    result.add(piece);
+                }
+            }
+        }
+        return result;
+    }
+
+    /**
+     * P-MOV-5: a piece that ends its move on an unprotected square with one
+     * opponent piece sends that piece back to its castle.
+     *
+     * <p>Start, safe and home squares are protected, so nothing is captured
+     * there. Two pieces of the same opponent on one square are a Double Block
+     * (P-MOV-6, iteration 3), so they are not captured either.
+     */
+    void captureAt(Piece mover) {
+        Square square = squareOf(mover);
+        if (square == null || square.isProtected()) {
+            return;
+        }
+        List<Piece> here = piecesOn(square);
+        for (Player owner : players) {
+            if (owner.color() == mover.color()) {
+                continue;
+            }
+            List<Piece> theirs = here.stream().filter(p -> p.color() == owner.color()).toList();
+            if (theirs.size() == 1) {
+                Piece victim = theirs.get(0);
+                int from = victim.position();
+                victim.moveTo(Piece.IN_CASTLE);
+                fire(l -> l.captured(mover, victim));
+                fire(l -> l.pieceMoved(victim, from, Piece.IN_CASTLE));
+                log(currentPlayer().name() + " captured " + victim + ", it goes back to the castle");
+            }
+        }
+    }
 
     /**
      * All moves the player can make with this roll.
