@@ -26,6 +26,14 @@ public enum Difficulty {
         return available;
     }
 
+    /** The dice used on this level (Strategy pattern). */
+    public DiceStrategy diceStrategy() {
+        return switch (this) {
+            case EASY -> new StandardDiceStrategy();
+            case MEDIUM, HARD -> throw new UnsupportedOperationException(displayName + " dice come in a later iteration");
+        };
+    }
+
     /** The value written in the difficulty column of the history file (easy, medium, hard). */
     public String csvName() {
         return name().toLowerCase();
