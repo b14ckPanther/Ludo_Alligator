@@ -1,10 +1,13 @@
 package Controller;
 
+import Model.BoardFactory;
 import Model.Game;
 import Model.GameConfig;
 import View.MainFrame;
 import View.screens.HomeScreen;
 import View.screens.SetupScreen;
+
+import java.util.Random;
 
 /**
  * Moves between the screens. Each screen gets callbacks for its buttons,
@@ -12,6 +15,7 @@ import View.screens.SetupScreen;
  */
 public final class AppController {
     private final MainFrame frame;
+    private final Random random = new Random();
     private GameConfig lastConfig;
 
     public AppController(MainFrame frame) {
@@ -30,7 +34,7 @@ public final class AppController {
     /** Called by the setup screen with a config that already passed the checks. */
     public void startGame(GameConfig config) {
         lastConfig = config;
-        Game game = new Game(config);
+        Game game = new Game(config, BoardFactory.create(config.difficulty(), random));
         // TODO T1.5: open the board screen for this game
         showHome();
     }
