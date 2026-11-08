@@ -313,6 +313,15 @@ public final class GameScreen extends Screen implements GameListener {
     }
 
     @Override
+    public void playerFinished(Player player, int rank) {
+        sequencer.add(done -> {
+            players.repaint();
+            turnCard.flash();
+            Anim.delay(600, done);
+        });
+    }
+
+    @Override
     public void captured(Piece attacker, Piece victim) {
         sequencer.add(done -> boardView.animateCapture(attacker, victim, done));
     }

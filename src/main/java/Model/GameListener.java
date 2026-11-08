@@ -24,6 +24,12 @@ public interface GameListener {
     /** {@code attacker} captured {@code victim}; a pieceMoved event back to the castle follows. */
     default void captured(Piece attacker, Piece victim) { }
 
+    /** A player brought all four pieces home and got this place (1 = first). */
+    default void playerFinished(Player player, int rank) { }
+
+    /** The game is over. The list has every player in finishing order. */
+    default void gameOver(java.util.List<Player> ranking) { }
+
     /** The game now waits for something else (see {@link TurnPhase}). */
     default void phaseChanged(TurnPhase phase) { }
 

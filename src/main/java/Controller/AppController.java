@@ -3,11 +3,15 @@ package Controller;
 import Model.BoardFactory;
 import Model.Game;
 import Model.GameConfig;
+import Model.Player;
 import View.MainFrame;
 import View.game.GameScreen;
 import View.screens.HomeScreen;
+import View.screens.ResultsScreen;
 import View.screens.SetupScreen;
 
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 /**
@@ -36,11 +40,30 @@ public final class AppController {
     public void startGame(GameConfig config) {
         lastConfig = config;
         Game game = new Game(config, BoardFactory.create(config.difficulty(), random), random);
-        GameController controller = new GameController(game);
+        GameController controller = new GameController(game, this);
         GameScreen screen = new GameScreen(game, frame, controller);
         controller.attach(screen);
         frame.showScreen(screen);
         controller.start();
+    }
+
+    /** Shows the results of a finished game (P-END-3). */
+    public void showResults(Game game) {
+        List<ResultsScreen.Place> places = new ArrayList<>();
+        for (Player p : game.ranking()) {
+            places.add(new ResultsScreen.Place(p.rank(), p.name(), p.color()));
+        }
+        long seconds = game.clock().elapsedMillis() / 1000;
+        frame.showScreen(new ResultsScreen(places, seconds, this::playAgain, this::showHome));
+    }
+
+    /** Starts a new game with the same players, colors and difficulty. */
+    public void playAgain() {
+        if (lastConfig != null) {
+            startGame(lastConfig);
+        } else {
+            showSetup();
+        }
     }
 
     public void exit() {

@@ -4,10 +4,13 @@ import Model.Game;
 import Model.GameListener;
 import Model.Move;
 import Model.Piece;
+import Model.Player;
 import Model.TurnPhase;
 import View.game.GameScreen;
+import View.ui.Anim;
 
 import javax.swing.SwingUtilities;
+import java.util.List;
 
 /**
  * Controller for one running game. It passes the player's actions from the
@@ -16,11 +19,13 @@ import javax.swing.SwingUtilities;
  */
 public final class GameController implements GameScreen.Actions, GameListener {
     private final Game game;
+    private final AppController app;
     private GameScreen screen;
     private boolean showScheduled;
 
-    public GameController(Game game) {
+    public GameController(Game game, AppController app) {
         this.game = game;
+        this.app = app;
     }
 
     public void attach(GameScreen screen) {
@@ -64,6 +69,13 @@ public final class GameController implements GameScreen.Actions, GameListener {
     @Override
     public void phaseChanged(TurnPhase phase) {
         scheduleShow();
+    }
+
+    /** When the game is over, let the last move finish on screen, wait a moment, then show the results. */
+    @Override
+    public void gameOver(List<Player> ranking) {
+        game.removeListener(this);
+        screen.sequencer().whenIdle(() -> Anim.delay(900, () -> app.showResults(game)));
     }
 
     /**
