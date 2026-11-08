@@ -15,6 +15,7 @@ import javax.swing.BoxLayout;
 import javax.swing.JComponent;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
+import javax.swing.JTextArea;
 import java.awt.AlphaComposite;
 import java.awt.BorderLayout;
 import java.awt.Component;
@@ -52,7 +53,7 @@ public final class HomeScreen extends Screen {
         kicker.setAlignmentX(Component.LEFT_ALIGNMENT);
         left.add(kicker);
         left.add(Box.createVerticalStrut(18));
-        JLabel blurb = Text.paragraph("The classic board game for 2 to 4 players on one computer. "
+        JTextArea blurb = Text.wrapping("The classic board game for 2 to 4 players on one computer. "
                 + "Roll a six to leave your castle, capture the other pieces and be the first "
                 + "to bring all four home.", Theme.ui(400, 17f), Theme.CHALK, 430);
         blurb.setAlignmentX(Component.LEFT_ALIGNMENT);

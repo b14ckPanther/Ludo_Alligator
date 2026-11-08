@@ -1,6 +1,7 @@
 package View.ui;
 
 import javax.swing.JLabel;
+import javax.swing.JTextArea;
 import javax.swing.JScrollPane;
 import javax.swing.JScrollBar;
 import javax.swing.BorderFactory;
@@ -34,6 +35,30 @@ public final class Text {
         l.setFont(font);
         l.setForeground(color);
         return l;
+    }
+
+    /**
+     * Text that wraps to the width it really gets from the layout, up to
+     * maxWidth. Safer than an HTML label, whose wrap width is drawn a bit
+     * differently on Windows and macOS.
+     */
+    public static JTextArea wrapping(String text, Font font, Color color, int maxWidth) {
+        JTextArea area = new JTextArea(text) {
+            @Override
+            public Dimension getMaximumSize() {
+                return new Dimension(maxWidth, super.getPreferredSize().height);
+            }
+        };
+        area.setFont(font);
+        area.setForeground(color);
+        area.setOpaque(false);
+        area.setEditable(false);
+        area.setFocusable(false);
+        area.setLineWrap(true);
+        area.setWrapStyleWord(true);
+        area.setBorder(BorderFactory.createEmptyBorder());
+        area.setHighlighter(null);
+        return area;
     }
 
     public static String escape(String s) {
